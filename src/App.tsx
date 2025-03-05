@@ -115,23 +115,31 @@ const addColumn = (state: AppState, title: string): AppState => {
 };
 
 const App: React.FC = () => {
-  const [state, setState] = useState<AppState>(INITIAL_DATA);
+  const [state, setState] = useState<AppState>(() => {
+    const savedState = localStorage.getItem('appState');
+    return savedState ? JSON.parse(savedState) : INITIAL_DATA;
+  });
+
+  const saveState = useCallback((newState: AppState) => {
+    setState(newState);
+    localStorage.setItem('appState', JSON.stringify(newState));
+  }, []);
 
   const onDragEnd = useCallback((result: DropResult) => {
     const { destination, source, draggableId } = result;
 
-    if (!destination || 
-        (destination.droppableId === source.droppableId && 
+    if (!destination ||
+        (destination.droppableId === source.droppableId &&
          destination.index === source.index)) {
       return;
     }
 
-    setState(prevState => moveTasks(prevState, source, destination, draggableId));
-  }, []);
+    saveState(moveTasks(state, source, destination, draggableId));
+  }, [state, saveState]);
 
   const handleAddColumn = useCallback((title: string) => {
-    setState(prevState => addColumn(prevState, title));
-  }, []);
+    saveState(addColumn(state, title));
+  }, [state, saveState]);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
