@@ -1,3 +1,4 @@
+import { Droppable } from '@hello-pangea/dnd';
 import React from 'react';
 import { Task } from '../App';
 import TaskCard from './TaskCard';
@@ -13,20 +14,38 @@ interface ColumnProps {
 
 const Column: React.FC<ColumnProps> = ({ column, tasks, innerRef, ...props }) => {
   return (
-    <div 
-      ref={innerRef} 
-      {...props}
-      className="bg-white shadow w-50 border border-gray-300 p-2.5 rounded-lg h-[500px] overflow-y-auto pt-8"
-    >
-      <h2 className='mb-2'>{column.title}</h2>
-      {tasks.map((task, index) => (
-        <TaskCard 
-          key={task.id} 
-          task={task} 
-          index={index} 
-        />
-      ))}
-    </div>
+    <Droppable droppableId={column.id}>
+      {(provided, snapshot) => (
+        <div
+          ref={(node) => {
+            provided.innerRef(node);
+            innerRef(node);
+          }}
+          {...provided.droppableProps}
+          {...props}
+          className={`bg-white shadow min-w-[300px] border border-gray-300 p-2 rounded-lg transition-all duration-200 ${
+            snapshot.isDraggingOver 
+              ? 'min-h-[300px]'
+              : 'min-h-[180px]'
+          }`}
+        >
+          <h2 className='mb-2 font-medium'>
+            {column.title}{' '}
+            <span className='text-xs bg-gray-200 rounded-full px-2 py-1'>
+              {tasks.length}
+            </span>
+          </h2>
+          {tasks.map((task, index) => (
+            <TaskCard 
+              key={task.id} 
+              task={task} 
+              index={index} 
+            />
+          ))}
+          {provided.placeholder} {/* This is crucial for dynamic height */}
+        </div>
+      )}
+    </Droppable>
   );
 };
 

@@ -13,7 +13,7 @@ interface BoardProps {
 
 const Board: React.FC<BoardProps> = ({ state }) => {
   return (
-    <div className="flex gap-5 p-5 place-content-center"> 
+    <div className="flex gap-4 justify-center px-4">
       {state.columnOrder.map((columnId) => {
         const column = state.columns[columnId];
         const tasks = column.taskIds.map(taskId => state.tasks[taskId]);
