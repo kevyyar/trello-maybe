@@ -11,6 +11,8 @@ interface BoardProps {
     columnOrder: string[];
   };
   onAddColumn: (title: string) => void;
+  onRenameColumn: (columnId: string, newTitle: string) => void;
+  onDeleteColumn: (columnId: string) => void;
 }
 
 const NewColumnForm: React.FC<{
@@ -56,8 +58,13 @@ const NewColumnForm: React.FC<{
   );
 };
 
-const Board: React.FC<BoardProps> = ({ state, onAddColumn }) => {
+const Board: React.FC<BoardProps> = ({ state, onAddColumn, onRenameColumn, onDeleteColumn }) => {
   const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [openMenuColumnId, setOpenMenuColumnId] = useState<string | null>(null);
+  
+  const handleToggleMenu = (columnId: string) => {
+    setOpenMenuColumnId(openMenuColumnId === columnId ? null : columnId);
+  };
 
   const handleCreateColumn = (title: string) => {
     if (state.columnOrder.length >= 5) {
@@ -79,11 +86,15 @@ const Board: React.FC<BoardProps> = ({ state, onAddColumn }) => {
           <Droppable key={column.id} droppableId={column.id}>
             {(provided) => (
               <div>
-                <Column 
+                <Column
                   key={column.id}
                   column={column}
                   tasks={tasks}
                   innerRef={provided.innerRef}
+                  isMenuOpen={openMenuColumnId === column.id}
+                  onToggleMenu={() => handleToggleMenu(column.id)}
+                  onRename={(newTitle) => onRenameColumn(column.id, newTitle)}
+                  onDelete={() => onDeleteColumn(column.id)}
                   {...provided.droppableProps}
                 />
                 {provided.placeholder}

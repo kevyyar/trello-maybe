@@ -114,6 +114,37 @@ const addColumn = (state: AppState, title: string): AppState => {
   };
 };
 
+const renameColumn = (state: AppState, columnId: string, newTitle: string): AppState => {
+  if (!state.columns[columnId]) return state;
+  
+  return {
+    ...state,
+    columns: {
+      ...state.columns,
+      [columnId]: {
+        ...state.columns[columnId],
+        title: newTitle,
+      },
+    },
+  };
+};
+
+const deleteColumn = (state: AppState, columnId: string): AppState => {
+  if (!state.columns[columnId]) return state;
+  
+  // Create a new columns object without the deleted column
+  const { [columnId]: deletedColumn, ...remainingColumns } = state.columns;
+  
+  // Remove the column from the columnOrder array
+  const newColumnOrder = state.columnOrder.filter(id => id !== columnId);
+  
+  return {
+    ...state,
+    columns: remainingColumns,
+    columnOrder: newColumnOrder,
+  };
+};
+
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
     const savedState = localStorage.getItem('appState');
@@ -141,11 +172,24 @@ const App: React.FC = () => {
     saveState(addColumn(state, title));
   }, [state, saveState]);
 
+  const handleRenameColumn = useCallback((columnId: string, newTitle: string) => {
+    saveState(renameColumn(state, columnId, newTitle));
+  }, [state, saveState]);
+
+  const handleDeleteColumn = useCallback((columnId: string) => {
+    saveState(deleteColumn(state, columnId));
+  }, [state, saveState]);
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="app-container">
         <Heading />
-        <Board state={state} onAddColumn={handleAddColumn} />
+        <Board
+          state={state}
+          onAddColumn={handleAddColumn}
+          onRenameColumn={handleRenameColumn}
+          onDeleteColumn={handleDeleteColumn}
+        />
       </div>
     </DragDropContext>
   );
