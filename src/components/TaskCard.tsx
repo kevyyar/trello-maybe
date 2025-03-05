@@ -20,9 +20,6 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, index }) => {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           className="bg-white border p-2.5 rounded-md"
-          // className={`bg-white border p-2.5 rounded-md transition-all duration-200 ${
-          //   snapshot.isDragging ? 'min-h-[150px]' : 'min-h-[100px]'
-          // }`}
           style={{
             ...provided.draggableProps.style,
             marginTop: '10px',
