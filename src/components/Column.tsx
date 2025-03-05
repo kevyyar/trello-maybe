@@ -42,7 +42,7 @@ const Column: React.FC<ColumnProps> = ({ column, tasks, innerRef, ...props }) =>
               index={index} 
             />
           ))}
-          {provided.placeholder} {/* This is crucial for dynamic height */}
+          {provided.placeholder}
         </div>
       )}
     </Droppable>
