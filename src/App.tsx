@@ -1,151 +1,146 @@
-import { DragDropContext } from '@hello-pangea/dnd';
-import { useState } from 'react';
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
+import { useCallback, useState } from 'react';
 import './App.css';
 import Board from './components/Board';
 import { Heading } from './components/heading/heading';
 
-// Task type definition
 export interface Task {
   id: string;
   title: string;
   description: string;
 }
 
-// Column data structure
 export interface ColumnData {
   id: string;
   title: string;
   taskIds: string[];
 }
 
-// Application state structure
-interface AppState {
-  tasks: { [key: string]: Task };
-  columns: { [key: string]: ColumnData };
+export interface AppState {
+  tasks: Record<string, Task>;
+  columns: Record<string, ColumnData>;
   columnOrder: string[];
 }
 
-// Initial data
-const initialData: AppState = {
+const INITIAL_DATA: AppState = {
   tasks: {
-    '1': { id: '1', title: 'Example Task', description: 'This is a test' },
-    '2': { id: '2', title: 'Another Task', description: 'This is another test' },
-    '3': { id: '3', title: 'Yet Another Task', description: 'This is yet another test' },
-    '4': { id: '4', title: 'One More Task', description: 'This is one more test' },
+    'task-1': { id: 'task-1', title: 'Example Task', description: 'This is a test' },
+    'task-2': { id: 'task-2', title: 'Another Task', description: 'This is another test' },
+    'task-3': { id: 'task-3', title: 'Yet Another Task', description: 'This is yet another test' },
+    'task-4': { id: 'task-4', title: 'One More Task', description: 'This is one more test' },
   },
   columns: {
-    'on-deck': {
-      id: 'on-deck',
+    'column-on-deck': {
+      id: 'column-on-deck',
       title: 'On Deck',
       taskIds: [],
     },
-    'todo': {
-      id: 'todo',
+    'column-todo': {
+      id: 'column-todo',
       title: 'Todo',
-      taskIds: ['1', '2', '3', '4'],
+      taskIds: ['task-1', 'task-2', 'task-3', 'task-4'],
     },
-    'development': {
-      id: 'development',
+    'column-development': {
+      id: 'column-development',
       title: 'Development',
       taskIds: [],
     },
-    'ready-for-qa': {
-      id: 'ready-for-qa',
+    'column-ready-for-qa': {
+      id: 'column-ready-for-qa',
       title: 'Ready for QA',
       taskIds: [],
     },
-    'on-prod': {
-      id: 'on-prod',
-      title: 'On Prod',
-      taskIds: [],
-    },
   },
-  columnOrder: ['on-deck', 'todo', 'development', 'ready-for-qa', 'on-prod'],
+  columnOrder: ['column-on-deck', 'column-todo', 'column-development', 'column-ready-for-qa'],
 };
 
-function App() {
-  const [state, setState] = useState<AppState>(initialData);
+const moveTasks = (
+  state: AppState,
+  source: DropResult['source'],
+  destination: DropResult['destination'],
+  draggableId: string
+): AppState => {
+  const sourceColumn = state.columns[source.droppableId];
+  const destinationColumn = state.columns[destination!.droppableId];
 
-  const onDragEnd = (result: any) => {
-    const { destination, source, draggableId } = result;
+  if (sourceColumn.id === destinationColumn.id) {
+    const newTaskIds = [...sourceColumn.taskIds];
+    newTaskIds.splice(source.index, 1);
+    newTaskIds.splice(destination!.index, 0, draggableId);
 
-    // Drop outside any droppable
-    if (!destination) {
-      return;
-    }
-
-    // Dropped in the same position
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
-
-    // Get source and destination columns
-    const sourceColumn = state.columns[source.droppableId];
-    const destinationColumn = state.columns[destination.droppableId];
-
-    // Moving within the same column
-    if (sourceColumn.id === destinationColumn.id) {
-      const newTaskIds = Array.from(sourceColumn.taskIds);
-      
-      // Remove from old position and insert at new position
-      newTaskIds.splice(source.index, 1);
-      newTaskIds.splice(destination.index, 0, draggableId);
-
-      // Create new column with updated taskIds
-      const newColumn = {
-        ...sourceColumn,
-        taskIds: newTaskIds,
-      };
-
-      // Update state with new column data
-      setState({
-        ...state,
-        columns: {
-          ...state.columns,
-          [newColumn.id]: newColumn,
-        },
-      });
-      
-      return;
-    }
-
-    // Moving from one column to another
-    const sourceTaskIds = Array.from(sourceColumn.taskIds);
-    sourceTaskIds.splice(source.index, 1);
-    
-    const newSourceColumn = {
-      ...sourceColumn,
-      taskIds: sourceTaskIds,
-    };
-
-    const destinationTaskIds = Array.from(destinationColumn.taskIds);
-    destinationTaskIds.splice(destination.index, 0, draggableId);
-    
-    const newDestinationColumn = {
-      ...destinationColumn,
-      taskIds: destinationTaskIds,
-    };
-
-    // Update state with new column data for both columns
-    setState({
+    return {
       ...state,
       columns: {
         ...state.columns,
-        [newSourceColumn.id]: newSourceColumn,
-        [newDestinationColumn.id]: newDestinationColumn,
+        [sourceColumn.id]: {
+          ...sourceColumn,
+          taskIds: newTaskIds,
+        },
       },
-    });
+    };
+  }
+
+  const sourceTaskIds = [...sourceColumn.taskIds];
+  const destinationTaskIds = [...destinationColumn.taskIds];
+  
+  sourceTaskIds.splice(source.index, 1);
+  destinationTaskIds.splice(destination!.index, 0, draggableId);
+
+  return {
+    ...state,
+    columns: {
+      ...state.columns,
+      [sourceColumn.id]: { ...sourceColumn, taskIds: sourceTaskIds },
+      [destinationColumn.id]: { ...destinationColumn, taskIds: destinationTaskIds },
+    },
   };
+};
+
+const addColumn = (state: AppState, title: string): AppState => {
+  const newColumnId = `column-${Date.now()}`;
+  const newColumn: ColumnData = {
+    id: newColumnId,
+    title,
+    taskIds: [],
+  };
+
+  return {
+    ...state,
+    columns: {
+      ...state.columns,
+      [newColumnId]: newColumn,
+    },
+    columnOrder: [...state.columnOrder, newColumnId],
+  };
+};
+
+const App: React.FC = () => {
+  const [state, setState] = useState<AppState>(INITIAL_DATA);
+
+  const onDragEnd = useCallback((result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination || 
+        (destination.droppableId === source.droppableId && 
+         destination.index === source.index)) {
+      return;
+    }
+
+    setState(prevState => moveTasks(prevState, source, destination, draggableId));
+  }, []);
+
+  const handleAddColumn = useCallback((title: string) => {
+    setState(prevState => addColumn(prevState, title));
+  }, []);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <Heading />
-      <Board state={state} />
+      <div className="app-container">
+        <Heading />
+        <Board state={state} onAddColumn={handleAddColumn} />
+      </div>
     </DragDropContext>
   );
-}
+};
 
 export default App;
