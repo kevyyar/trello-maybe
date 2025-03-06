@@ -1,14 +1,18 @@
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
-import { useCallback, useState } from "react";
+import { doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import Board from "./components/Board";
 import { Heading } from "./components/heading";
 import TaskModal from "./components/task-modal";
+import { useAuth } from "./lib/auth-context";
+import { tasksCollection, userBoardsCollection } from "./lib/firebase";
 
 export interface Task {
   id: string;
   title: string;
   description: string;
+  userId?: string;
 }
 
 export interface ColumnData {
@@ -173,6 +177,7 @@ const deleteColumn = (state: AppState, columnId: string): AppState => {
 };
 
 const App: React.FC = () => {
+  const { user } = useAuth();
   const [state, setState] = useState<AppState>(() => {
     const savedState = localStorage.getItem("appState");
     return savedState ? JSON.parse(savedState) : INITIAL_DATA;
@@ -180,10 +185,125 @@ const App: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const saveState = useCallback((newState: AppState) => {
-    setState(newState);
-    localStorage.setItem("appState", JSON.stringify(newState));
-  }, []);
+  // Define saveState before it's used in the useEffect hooks
+  const saveState = useCallback(
+    (newState: AppState) => {
+      setState(newState);
+      localStorage.setItem("appState", JSON.stringify(newState));
+
+      // Save to Firestore if user is logged in
+      if (user) {
+        // Save user's board state
+        const userBoardRef = doc(userBoardsCollection, user.uid);
+        setDoc(userBoardRef, {
+          columns: newState.columns,
+          columnOrder: newState.columnOrder,
+          updatedAt: new Date(),
+        });
+
+        // Save only user's tasks
+        Object.values(newState.tasks).forEach(async (task) => {
+          if (task.userId === user.uid) {
+            await setDoc(doc(tasksCollection, task.id), {
+              ...task,
+              updatedAt: new Date(),
+            });
+          }
+        });
+      }
+    },
+    [user]
+  );
+
+  // Load user data from Firestore when user logs in
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (user) {
+        try {
+          // Load user's board configuration
+          const userBoardRef = doc(userBoardsCollection, user.uid);
+          const userBoardDoc = await getDoc(userBoardRef);
+
+          // Load user's tasks
+          const userTasksQuery = query(
+            tasksCollection,
+            where("userId", "==", user.uid)
+          );
+          const userTasksSnapshot = await getDocs(userTasksQuery);
+
+          if (userBoardDoc.exists() && !userTasksSnapshot.empty) {
+            const userBoardData = userBoardDoc.data();
+            const userTasks: Record<string, Task> = {};
+
+            userTasksSnapshot.forEach((doc) => {
+              const taskData = doc.data() as Task;
+              userTasks[taskData.id] = taskData;
+            });
+
+            // Merge with current state
+            const mergedState: AppState = {
+              tasks: { ...state.tasks, ...userTasks },
+              columns: userBoardData.columns || state.columns,
+              columnOrder: userBoardData.columnOrder || state.columnOrder,
+            };
+
+            setState(mergedState);
+            localStorage.setItem("appState", JSON.stringify(mergedState));
+          }
+        } catch (error) {
+          console.error("Error loading user data from Firestore:", error);
+        }
+      }
+    };
+
+    loadUserData();
+  }, [user]);
+
+  // Handle user logout - remove user-created tasks
+  useEffect(() => {
+    if (!user) {
+      // User logged out, remove their tasks
+      const initialTaskIds = Object.keys(INITIAL_DATA.tasks);
+
+      setState((currentState) => {
+        // Filter out user-created tasks
+        const filteredTasks = Object.entries(currentState.tasks).reduce(
+          (acc, [taskId, task]) => {
+            if (initialTaskIds.includes(taskId) || !task.userId) {
+              acc[taskId] = task;
+            }
+            return acc;
+          },
+          {} as Record<string, Task>
+        );
+
+        // Update column taskIds to remove references to deleted tasks
+        const updatedColumns = Object.entries(currentState.columns).reduce(
+          (acc, [columnId, column]) => {
+            acc[columnId] = {
+              ...column,
+              taskIds: column.taskIds.filter(
+                (taskId) =>
+                  initialTaskIds.includes(taskId) || filteredTasks[taskId]
+              ),
+            };
+            return acc;
+          },
+          {} as Record<string, ColumnData>
+        );
+
+        const newState = {
+          ...currentState,
+          tasks: filteredTasks,
+          columns: updatedColumns,
+        };
+
+        // Save to localStorage and Firestore
+        localStorage.setItem("appState", JSON.stringify(newState));
+        return newState;
+      });
+    }
+  }, [user]);
 
   const handleCreateTask = useCallback(
     (taskData: Omit<Task, "id">) => {
@@ -191,6 +311,7 @@ const App: React.FC = () => {
       const newTask: Task = {
         id: newTaskId,
         ...taskData,
+        userId: user?.uid,
       };
 
       const newState = {
