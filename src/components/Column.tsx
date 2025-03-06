@@ -43,6 +43,12 @@ const Column: React.FC<ColumnProps> = ({
 
   const handleRename = () => {
     setIsRenaming(true);
+    // Close the menu when starting to rename
+    if (onToggleMenu) {
+      onToggleMenu();
+    } else {
+      setIsOpen(false);
+    }
   };
 
   const handleRenameSubmit = (e: React.FormEvent) => {
@@ -99,11 +105,14 @@ const Column: React.FC<ColumnProps> = ({
                 </span>
               </h2>
             )}
-            <button onClick={handleOpenOptions} className="cursor-pointer">
+            <button
+              onClick={handleOpenOptions}
+              className="cursor-pointer menu-trigger"
+            >
               <Ellipsis size={20} />
             </button>
             {menuIsOpen && (
-              <div className="absolute top-6 right-[-25px] bg-emerald-50 shadow-lg rounded-md z-10">
+              <div className="absolute top-6 right-[-25px] bg-emerald-50 shadow-lg rounded-md z-10 column-menu">
                 <div className="flex flex-col items-start gap-2 min-w-[120px]">
                   <button
                     onClick={handleRename}

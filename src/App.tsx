@@ -2,7 +2,7 @@ import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { useCallback, useState } from "react";
 import "./App.css";
 import Board from "./components/Board";
-import { Heading } from "./components/heading/heading";
+import { Heading } from "./components/heading";
 import TaskModal from "./components/task-modal";
 
 export interface Task {
@@ -246,7 +246,18 @@ const App: React.FC = () => {
 
   const handleDeleteColumn = useCallback(
     (columnId: string) => {
-      saveState(deleteColumn(state, columnId));
+      const columnTitle = state.columns[columnId]?.title || columnId;
+
+      const alertUserOnDeletion = () => {
+        if (
+          window.confirm(
+            `Are you sure you want to delete column ${columnTitle} column?`
+          )
+        ) {
+          saveState(deleteColumn(state, columnId));
+        }
+      };
+      alertUserOnDeletion();
     },
     [state, saveState]
   );

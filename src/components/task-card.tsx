@@ -1,6 +1,6 @@
 import { Draggable } from "@hello-pangea/dnd";
 import React from "react";
-import { PillCategory } from "./pill-category/pill-category";
+import { PillCategory } from "./pill-category";
 
 interface TaskCardProps {
   task: {

@@ -1,8 +1,8 @@
-import { Droppable } from '@hello-pangea/dnd';
-import { Plus, X } from 'lucide-react';
-import React, { useState } from 'react';
-import { ColumnData, Task } from '../App';
-import Column from './Column';
+import { Droppable } from "@hello-pangea/dnd";
+import { Plus, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ColumnData, Task } from "../App";
+import Column from "./Column";
 
 interface BoardProps {
   state: {
@@ -19,13 +19,13 @@ const NewColumnForm: React.FC<{
   onCreate: (title: string) => void;
   onCancel: () => void;
 }> = ({ onCreate, onCancel }) => {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
       onCreate(title.trim());
-      setTitle('');
+      setTitle("");
     }
   };
 
@@ -58,10 +58,30 @@ const NewColumnForm: React.FC<{
   );
 };
 
-const Board: React.FC<BoardProps> = ({ state, onAddColumn, onRenameColumn, onDeleteColumn }) => {
+const Board: React.FC<BoardProps> = ({
+  state,
+  onAddColumn,
+  onRenameColumn,
+  onDeleteColumn,
+}) => {
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [openMenuColumnId, setOpenMenuColumnId] = useState<string | null>(null);
-  
+
+  // close the menu when clicking outside of it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".column-menu") && !target.closest(".menu-trigger")) {
+        setOpenMenuColumnId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleToggleMenu = (columnId: string) => {
     setOpenMenuColumnId(openMenuColumnId === columnId ? null : columnId);
   };
@@ -80,8 +100,8 @@ const Board: React.FC<BoardProps> = ({ state, onAddColumn, onRenameColumn, onDel
     <div className="flex gap-4 justify-center px-4">
       {state.columnOrder.map((columnId) => {
         const column = state.columns[columnId];
-        const tasks = column.taskIds.map(taskId => state.tasks[taskId]);
-        
+        const tasks = column.taskIds.map((taskId) => state.tasks[taskId]);
+
         return (
           <Droppable key={column.id} droppableId={column.id}>
             {(provided) => (
