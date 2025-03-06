@@ -1,8 +1,9 @@
-import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { useCallback, useState } from 'react';
-import './App.css';
-import Board from './components/Board';
-import { Heading } from './components/heading/heading';
+import { DragDropContext, DropResult } from "@hello-pangea/dnd";
+import { useCallback, useState } from "react";
+import "./App.css";
+import Board from "./components/Board";
+import { Heading } from "./components/heading/heading";
+import TaskModal from "./components/task-modal";
 
 export interface Task {
   id: string;
@@ -24,40 +25,61 @@ export interface AppState {
 
 const INITIAL_DATA: AppState = {
   tasks: {
-    'task-1': { id: 'task-1', title: 'Example Task', description: 'This is a test' },
-    'task-2': { id: 'task-2', title: 'Another Task', description: 'This is another test' },
-    'task-3': { id: 'task-3', title: 'Yet Another Task', description: 'This is yet another test' },
-    'task-4': { id: 'task-4', title: 'One More Task', description: 'This is one more test' },
+    "task-1": {
+      id: "task-1",
+      title: "Example Task",
+      description: "This is a test",
+    },
+    "task-2": {
+      id: "task-2",
+      title: "Another Task",
+      description: "This is another test",
+    },
+    "task-3": {
+      id: "task-3",
+      title: "Yet Another Task",
+      description: "This is yet another test",
+    },
+    "task-4": {
+      id: "task-4",
+      title: "One More Task",
+      description: "This is one more test",
+    },
   },
   columns: {
-    'column-on-deck': {
-      id: 'column-on-deck',
-      title: 'On Deck',
+    "column-on-deck": {
+      id: "column-on-deck",
+      title: "On Deck",
       taskIds: [],
     },
-    'column-todo': {
-      id: 'column-todo',
-      title: 'Todo',
-      taskIds: ['task-1', 'task-2', 'task-3', 'task-4'],
+    "column-todo": {
+      id: "column-todo",
+      title: "Todo",
+      taskIds: ["task-1", "task-2", "task-3", "task-4"],
     },
-    'column-development': {
-      id: 'column-development',
-      title: 'Development',
+    "column-development": {
+      id: "column-development",
+      title: "Development",
       taskIds: [],
     },
-    'column-ready-for-qa': {
-      id: 'column-ready-for-qa',
-      title: 'Ready for QA',
+    "column-ready-for-qa": {
+      id: "column-ready-for-qa",
+      title: "Ready for QA",
       taskIds: [],
     },
   },
-  columnOrder: ['column-on-deck', 'column-todo', 'column-development', 'column-ready-for-qa'],
+  columnOrder: [
+    "column-on-deck",
+    "column-todo",
+    "column-development",
+    "column-ready-for-qa",
+  ],
 };
 
 const moveTasks = (
   state: AppState,
-  source: DropResult['source'],
-  destination: DropResult['destination'],
+  source: DropResult["source"],
+  destination: DropResult["destination"],
   draggableId: string
 ): AppState => {
   const sourceColumn = state.columns[source.droppableId];
@@ -82,7 +104,7 @@ const moveTasks = (
 
   const sourceTaskIds = [...sourceColumn.taskIds];
   const destinationTaskIds = [...destinationColumn.taskIds];
-  
+
   sourceTaskIds.splice(source.index, 1);
   destinationTaskIds.splice(destination!.index, 0, draggableId);
 
@@ -91,7 +113,10 @@ const moveTasks = (
     columns: {
       ...state.columns,
       [sourceColumn.id]: { ...sourceColumn, taskIds: sourceTaskIds },
-      [destinationColumn.id]: { ...destinationColumn, taskIds: destinationTaskIds },
+      [destinationColumn.id]: {
+        ...destinationColumn,
+        taskIds: destinationTaskIds,
+      },
     },
   };
 };
@@ -114,9 +139,13 @@ const addColumn = (state: AppState, title: string): AppState => {
   };
 };
 
-const renameColumn = (state: AppState, columnId: string, newTitle: string): AppState => {
+const renameColumn = (
+  state: AppState,
+  columnId: string,
+  newTitle: string
+): AppState => {
   if (!state.columns[columnId]) return state;
-  
+
   return {
     ...state,
     columns: {
@@ -131,11 +160,11 @@ const renameColumn = (state: AppState, columnId: string, newTitle: string): AppS
 
 const deleteColumn = (state: AppState, columnId: string): AppState => {
   if (!state.columns[columnId]) return state;
-  
+
   const remainingColumns = { ...state.columns };
-  
-  const newColumnOrder = state.columnOrder.filter(id => id !== columnId);
-  
+
+  const newColumnOrder = state.columnOrder.filter((id) => id !== columnId);
+
   return {
     ...state,
     columns: remainingColumns,
@@ -145,48 +174,97 @@ const deleteColumn = (state: AppState, columnId: string): AppState => {
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(() => {
-    const savedState = localStorage.getItem('appState');
+    const savedState = localStorage.getItem("appState");
     return savedState ? JSON.parse(savedState) : INITIAL_DATA;
   });
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const saveState = useCallback((newState: AppState) => {
     setState(newState);
-    localStorage.setItem('appState', JSON.stringify(newState));
+    localStorage.setItem("appState", JSON.stringify(newState));
   }, []);
 
-  const onDragEnd = useCallback((result: DropResult) => {
-    const { destination, source, draggableId } = result;
+  const handleCreateTask = useCallback(
+    (taskData: Omit<Task, "id">) => {
+      const newTaskId = `task-${Date.now()}`;
+      const newTask: Task = {
+        id: newTaskId,
+        ...taskData,
+      };
 
-    if (!destination ||
+      const newState = {
+        ...state,
+        tasks: {
+          ...state.tasks,
+          [newTaskId]: newTask,
+        },
+        columns: {
+          ...state.columns,
+          "column-on-deck": {
+            ...state.columns["column-on-deck"],
+            taskIds: [...state.columns["column-on-deck"].taskIds, newTaskId],
+          },
+        },
+      };
+
+      saveState(newState);
+    },
+    [state, saveState]
+  );
+
+  const onDragEnd = useCallback(
+    (result: DropResult) => {
+      const { destination, source, draggableId } = result;
+
+      if (
+        !destination ||
         (destination.droppableId === source.droppableId &&
-         destination.index === source.index)) {
-      return;
-    }
+          destination.index === source.index)
+      ) {
+        return;
+      }
 
-    saveState(moveTasks(state, source, destination, draggableId));
-  }, [state, saveState]);
+      saveState(moveTasks(state, source, destination, draggableId));
+    },
+    [state, saveState]
+  );
 
-  const handleAddColumn = useCallback((title: string) => {
-    saveState(addColumn(state, title));
-  }, [state, saveState]);
+  const handleAddColumn = useCallback(
+    (title: string) => {
+      saveState(addColumn(state, title));
+    },
+    [state, saveState]
+  );
 
-  const handleRenameColumn = useCallback((columnId: string, newTitle: string) => {
-    saveState(renameColumn(state, columnId, newTitle));
-  }, [state, saveState]);
+  const handleRenameColumn = useCallback(
+    (columnId: string, newTitle: string) => {
+      saveState(renameColumn(state, columnId, newTitle));
+    },
+    [state, saveState]
+  );
 
-  const handleDeleteColumn = useCallback((columnId: string) => {
-    saveState(deleteColumn(state, columnId));
-  }, [state, saveState]);
+  const handleDeleteColumn = useCallback(
+    (columnId: string) => {
+      saveState(deleteColumn(state, columnId));
+    },
+    [state, saveState]
+  );
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="app-container">
-        <Heading />
+        <Heading onAddTask={() => setIsModalOpen(true)} />
         <Board
           state={state}
           onAddColumn={handleAddColumn}
           onRenameColumn={handleRenameColumn}
           onDeleteColumn={handleDeleteColumn}
+        />
+        <TaskModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onCreateTask={handleCreateTask}
         />
       </div>
     </DragDropContext>
