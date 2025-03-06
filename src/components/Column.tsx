@@ -2,7 +2,7 @@ import { Droppable } from "@hello-pangea/dnd";
 import { Ellipsis } from "lucide-react";
 import React, { useState } from "react";
 import { Task } from "../App";
-import TaskCard from "./TaskCard";
+import TaskCard from "./task-card";
 
 interface ColumnProps {
   column: {

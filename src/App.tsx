@@ -132,10 +132,8 @@ const renameColumn = (state: AppState, columnId: string, newTitle: string): AppS
 const deleteColumn = (state: AppState, columnId: string): AppState => {
   if (!state.columns[columnId]) return state;
   
-  // Create a new columns object without the deleted column
-  const { [columnId]: deletedColumn, ...remainingColumns } = state.columns;
+  const remainingColumns = { ...state.columns };
   
-  // Remove the column from the columnOrder array
   const newColumnOrder = state.columnOrder.filter(id => id !== columnId);
   
   return {
